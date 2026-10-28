@@ -1,0 +1,7 @@
+import type { NextFunction, Request, Response } from "express";
+import { User } from "../models/user";
+import { ForbiddenError } from "../utils/validation";
+import { verifyToken } from "../utils/jwt";
+
+export const requireAuth = async (request: Request, _response: Response, next: NextFunction) => { try { const header = request.header("authorization"); if (!header?.startsWith("Bearer ")) return next(new ForbiddenError("Authentication is required")); const payload = verifyToken(header.slice("Bearer ".length)); const user = await User.findById(payload.sub).select("organizationId role active mustChangePassword tokenVersion").lean(); if (!user || !user.active || (payload.ver ?? 0) !== user.tokenVersion) return next(new ForbiddenError("Your account is inactive or unavailable")); request.auth = { userId: String(user._id), organizationId: String(user.organizationId), role: user.role, mustChangePassword: user.mustChangePassword }; return next(); } catch { return next(new ForbiddenError("Authentication is required")); } };
+export const requireRole = (...roles: Array<"admin" | "hr" | "employee">) => (request: Request, _response: Response, next: NextFunction) => { if (!request.auth || !roles.includes(request.auth.role)) return next(new ForbiddenError("You do not have permission for this action")); if (request.auth.mustChangePassword) return next(new ForbiddenError("Change your temporary password before continuing")); return next(); };

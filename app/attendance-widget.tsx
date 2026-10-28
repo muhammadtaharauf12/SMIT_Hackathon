@@ -1,0 +1,15 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? (typeof window === "undefined" ? "http://localhost:5000" : `http://${window.location.hostname}:5000`);
+type Attendance = { checkIn: string; checkOut: string | null; durationMinutes: number | null; status: string };
+
+export function AttendanceWidget() {
+  const [token, setToken] = useState(""); const [attendance, setAttendance] = useState<Attendance | null>(null); const [role, setRole] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
+  const load = async (nextToken: string) => { try { const me = await fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${nextToken}` } }); const mePayload = await me.json(); if (!["employee", "hr"].includes(mePayload.data?.user?.role) || !mePayload.data?.user?.hasStaffProfile) { setRole(mePayload.data?.user?.role ?? ""); return; } setRole(mePayload.data.user.role); const today = await fetch(`${API_URL}/api/attendance/today`, { headers: { Authorization: `Bearer ${nextToken}` } }); const payload = await today.json(); if (!today.ok) throw new Error(payload.error?.message ?? "Attendance unavailable"); setAttendance(payload.data.attendance); } catch (err) { setError(err instanceof Error ? err.message : "Attendance unavailable"); } };
+  useEffect(() => { const check = () => { const nextToken = sessionStorage.getItem("hcm_token") ?? ""; if (nextToken && nextToken !== token) { setToken(nextToken); void load(nextToken); } if (!nextToken && token) { setToken(""); setAttendance(null); setRole(""); } }; check(); const timer = window.setInterval(check, 1000); return () => window.clearInterval(timer); }, [token]);
+  const action = async (path: string) => { setBusy(true); setError(""); try { const response = await fetch(`${API_URL}${path}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error?.message ?? "Attendance action failed"); setAttendance(payload.data.attendance); } catch (err) { setError(err instanceof Error ? err.message : "Attendance action failed"); } finally { setBusy(false); } };
+  if (role !== "employee" && role !== "hr") return null;
+  return <aside className="attendance-widget" aria-label="Today's attendance"><div><span className="panel-kicker">TODAY&apos;S ATTENDANCE</span><strong>{attendance?.status ?? "Not started"}</strong><small>{attendance?.checkIn ? `Checked in at ${new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(attendance.checkIn))}` : "Server-stamped check-in"}</small></div><div className="attendance-widget-actions"><button className="button button-primary" disabled={busy || Boolean(attendance)} onClick={() => void action("/api/attendance/check-in")}>Check in</button><button className="button button-dark" disabled={busy || !attendance || Boolean(attendance.checkOut)} onClick={() => void action("/api/attendance/check-out")}>Check out</button></div>{error && <small className="widget-error">{error}</small>}</aside>;
+}

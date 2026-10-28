@@ -1,0 +1,43 @@
+{
+  "name": "smit-hackathon",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build:server": "tsc --project server/tsconfig.runtime.json",
+    "dev:server": "npm run build:server && concurrently \"tsc --watch --project server/tsconfig.runtime.json\" \"node --watch dist/server/index.js\"",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "build": "next build",
+    "start": "next start",
+    "start:server": "node dist/server/index.js",
+    "test": "npm run build:server && node --test dist/server/tests/leave-rules.test.js dist/server/tests/attendance-rules.test.js dist/server/tests/payroll-rules.test.js dist/server/tests/ai-tools.test.js",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.4",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4.3.3",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.13.0",
+    "eslint-config-next": "^16.4.3",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}

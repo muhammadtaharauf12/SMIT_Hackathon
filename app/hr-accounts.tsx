@@ -1,0 +1,19 @@
+"use client";
+
+import { FormEvent, useCallback, useEffect, useState } from "react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? (typeof window === "undefined" ? "http://localhost:5000" : `http://${window.location.hostname}:5000`);
+type HrUser = { id: string; name: string; email: string; active: boolean; hasProfile: boolean };
+
+export function HrAccounts({ token }: { token: string }) {
+  const [users, setUsers] = useState<HrUser[]>([]);
+  const [selected, setSelected] = useState("");
+  const [form, setForm] = useState({ employeeCode: "", designation: "HR Manager", department: "HR", joinDate: "", basicSalary: "" });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => { try { const response = await fetch(`${API_URL}/api/users/hr`, { headers: { Authorization: `Bearer ${token}` } }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error?.message ?? "HR accounts unavailable"); setUsers(payload.data.users); } catch (reason) { setError(reason instanceof Error ? reason.message : "HR accounts unavailable"); } }, [token]);
+  useEffect(() => { void Promise.resolve().then(load); window.addEventListener("nexora-hr-created", load); return () => window.removeEventListener("nexora-hr-created", load); }, [load]);
+  const link = async (event: FormEvent) => { event.preventDefault(); if (!selected) return; setBusy(true); setError(""); try { const response = await fetch(`${API_URL}/api/users/hr/${selected}/profile`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...form, basicSalary: Number(form.basicSalary) }) }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error?.message ?? "Staff profile could not be linked"); setSelected(""); setForm({ employeeCode: "", designation: "HR Manager", department: "HR", joinDate: "", basicSalary: "" }); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Staff profile could not be linked"); } finally { setBusy(false); } };
+  const unlinked = users.filter(user => !user.hasProfile);
+  return <section className="panel"><div className="panel-title"><div><span className="panel-kicker">PEOPLE ACCESS</span><h2>HR staff profiles</h2></div></div><p className="muted">Link each HR login to a staff profile to enable personal attendance and leave.</p>{error && <div className="form-error" role="alert">{error}</div>}<div className="module-list">{users.map(user => <div className="module-row" key={user.id}><strong>{user.name}</strong><span>{user.hasProfile ? "Profile linked" : "Profile needed"}</span></div>)}</div>{unlinked.length > 0 && <form className="form-stack compact" onSubmit={link}><label>HR account<select required value={selected} onChange={event => setSelected(event.target.value)}><option value="">Choose HR account</option>{unlinked.map(user => <option value={user.id} key={user.id}>{user.name} ({user.email})</option>)}</select></label><label>Employee code<input required maxLength={40} value={form.employeeCode} onChange={event => setForm({ ...form, employeeCode: event.target.value })} /></label><label>Designation<input required value={form.designation} onChange={event => setForm({ ...form, designation: event.target.value })} /></label><label>Department<input value={form.department} onChange={event => setForm({ ...form, department: event.target.value })} /></label><label>Join date<input required type="date" value={form.joinDate} onChange={event => setForm({ ...form, joinDate: event.target.value })} /></label><label>Basic salary<input required type="number" min="1" value={form.basicSalary} onChange={event => setForm({ ...form, basicSalary: event.target.value })} /></label><button className="button button-primary" disabled={busy}>{busy ? "Linking…" : "Link staff profile"}</button></form>}</section>;
+}
